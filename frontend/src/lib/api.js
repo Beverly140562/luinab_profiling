@@ -1,4 +1,9 @@
+
 const TOKEN_KEY = 'luinab_token';
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || ''
+).replace(/\/+$/, '');
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -24,17 +29,32 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`/api${path}`, {
-    ...options,
-    headers,
-  });
+  const normalizedPath = path.startsWith('/')
+    ? path
+    : `/${path}`;
 
-  const contentType = res.headers.get('content-type') || '';
+  const url = `${API_BASE_URL}/api${normalizedPath}`;
+
+  let res;
+
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (cause) {
+    const error = new Error(
+      `Cannot connect to the API at ${url}. Check VITE_API_URL, backend availability, and CORS.`
+    );
+    error.cause = cause;
+    throw error;
+  }
+
+  const contentType =
+    res.headers.get('content-type') || '';
+
   const isCsv = contentType.includes('text/csv');
 
-  // --------------------------------------------------
-  // SESSION EXPIRED
-  // --------------------------------------------------
   if (res.status === 401 && path !== '/auth/login') {
     clearToken();
     window.location.href = '/login';
@@ -42,95 +62,58 @@ async function request(path, options = {}) {
     const error = new Error('Session expired.');
     error.status = 401;
     error.response = { status: 401 };
-
     throw error;
   }
 
-  // --------------------------------------------------
-  // HTTP ERROR
-  // --------------------------------------------------
   if (!res.ok) {
     let message = `Request failed (${res.status}).`;
-
-    // Read as text first so an empty/non-JSON response
-    // does not cause another JSON parsing error.
     const errorText = await res.text();
 
     if (errorText.trim()) {
       try {
         const data = JSON.parse(errorText);
-
-        if (data?.error) {
-          message = data.error;
-        } else if (data?.message) {
-          message = data.message;
-        }
-      } catch (e) {
-        // Server returned non-JSON text.
-        // Use the response text as the error message.
-        message = errorText.trim() || message;
+        message =
+          data?.error ||
+          data?.message ||
+          message;
+      } catch {
+        message = errorText.trim();
       }
     }
 
     const error = new Error(message);
-
     error.status = res.status;
-
     error.response = {
       status: res.status,
-      data: {
-        error: message,
-      },
+      data: { error: message },
     };
 
     throw error;
   }
 
-  // --------------------------------------------------
-  // CSV RESPONSE
-  // --------------------------------------------------
   if (isCsv) {
     return res.text();
   }
 
-  // --------------------------------------------------
-  // SUCCESS RESPONSE
-  // --------------------------------------------------
   const text = await res.text();
 
-  // Prevent:
-  // "Unexpected end of JSON input"
   if (!text.trim()) {
     return null;
   }
 
   try {
     return JSON.parse(text);
-  } catch (e) {
-    console.error(
-      `Invalid JSON response from ${path}:`,
-      text
-    );
-
+  } catch {
     const error = new Error(
-      `Invalid JSON response from ${path}.`
+      `Invalid JSON response from ${url}.`
     );
-
     error.status = res.status;
-    error.response = {
-      status: res.status,
-      data: {
-        error: error.message,
-      },
-    };
-
     throw error;
   }
 }
 
 export const api = {
-  get: (p) =>
-    request(p),
+  get: (p) => request(p),
 
   post: (p, body) =>
     request(p, {
