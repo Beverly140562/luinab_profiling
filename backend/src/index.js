@@ -25,8 +25,13 @@ async function main() {
   await seedUsers();
 
   const app = express();
-  app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-  app.use(express.json());
+  app.use(cors({
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+    : '*',
+}));
+
+app.use(express.json());
 
   
   app.get('/', (req, res) => res.json({
