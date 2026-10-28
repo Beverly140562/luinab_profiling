@@ -28,26 +28,37 @@ async function main() {
   app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
   app.use(express.json());
 
-  app.get('/', (req, res) => res.json({ name: 'Barangay Luinab API', status: 'ok' }));
-  app.use('/auth', require('./routes/auth'));
-  app.use('/users', require('./routes/users'));
-  app.use('/households', require('./routes/households'));
-  app.use('/validation', require('./routes/validation'));
-  app.use('/programs', require('./routes/programs'));
-  app.use('/distributions', require('./routes/distributions'));
-  app.use('/analytics', require('./routes/analytics'));
-  app.use('/reports', require('./routes/reports'));
-  app.use('/activity', require('./routes/activity'));
-  app.use('/calamity', require('./routes/calamity'));
-  app.use('/history', require('./routes/history'));
-  app.use('/notifications', require('./routes/notifications'));
-  app.use('/public', require('./routes/public'));
+  
+  app.get('/', (req, res) => res.json({
+    name: 'Barangay Luinab API',
+    status: 'ok',
+  }));
 
-  app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
+  app.use('/api/auth', require('./routes/auth'));
+  app.use('/api/users', require('./routes/users'));
+  app.use('/api/households', require('./routes/households'));
+  app.use('/api/validation', require('./routes/validation'));
+  app.use('/api/programs', require('./routes/programs'));
+  app.use('/api/distributions', require('./routes/distributions'));
+  app.use('/api/analytics', require('./routes/analytics'));
+  app.use('/api/reports', require('./routes/reports'));
+  app.use('/api/activity', require('./routes/activity'));
+  app.use('/api/calamity', require('./routes/calamity'));
+  app.use('/api/history', require('./routes/history'));
+  app.use('/api/notifications', require('./routes/notifications'));
+  app.use('/api/public', require('./routes/public'));
+
+  app.use((req, res) =>
+    res.status(404).json({ error: 'Not found.' })
+  );
+
   app.use((err, req, res, next) => {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error.' });
+    res.status(500).json({
+      error: 'Internal server error.',
+    });
   });
+
 
   const port = process.env.PORT || 4000;
   app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
